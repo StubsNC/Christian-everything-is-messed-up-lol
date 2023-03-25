@@ -1,4 +1,4 @@
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot } from "firebase/firestore";
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
@@ -12,8 +12,13 @@ const Chats = () => {
 
   useEffect(() => {
     const getChats = () => {
-      const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => {
-        setChats(doc.data());
+      // Update this query to fetch chat rooms data
+      const unsub = onSnapshot(collection(db, "chatRooms"), (querySnapshot) => {
+        const rooms = [];
+        querySnapshot.forEach((doc) => {
+          rooms.push({ id: doc.id, ...doc.data() });
+        });
+        setChats(rooms);
       });
 
       return () => {
@@ -24,22 +29,25 @@ const Chats = () => {
     currentUser.uid && getChats();
   }, [currentUser.uid]);
 
-  const handleSelect = (u) => {
-    dispatch({ type: "CHANGE_USER", payload: u });
+
+  const handleSelect = (room) => {
+    dispatch({ type: "SWITCH_CHAT_ROOM", payload: { chatRoomKey: room.key, chatId: room.id } });
   };
+  
+
 
   return (
     <div className="chats">
-      {Object.entries(chats)?.sort((a,b)=>b[1].date - a[1].date).map((chat) => (
+      {chats.map((chat) => (
         <div
           className="userChat"
-          key={chat[0]}
-          onClick={() => handleSelect(chat[1].userInfo)}
+          key={chat.id}
+          onClick={() => handleSelect(chat)}
         >
-          <img src={chat[1].userInfo.photoURL} alt="" />
-          <div className="userChatInfo">
-            <span>{chat[1].userInfo.displayName}</span>
-            <p>{chat[1].lastMessage?.text}</p>
+          <img src={chat.roomImageURL} alt="" />
+          <div className="chatRoomInfo">
+            <span>{chat.roomName}</span>
+            <p>{chat.lastMessage?.text}</p>
           </div>
         </div>
       ))}

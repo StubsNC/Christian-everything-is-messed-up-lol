@@ -22,57 +22,48 @@ const Input = () => {
   const { data } = useContext(ChatContext);
 
   const handleSend = async () => {
+    let downloadURL;
     if (img) {
       const storageRef = ref(storage, uuid());
 
       const uploadTask = uploadBytesResumable(storageRef, img);
 
-      uploadTask.on(
-        (error) => {
-          //TODO:Handle Error
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-            await updateDoc(doc(db, "chats", data.chatId), {
-              messages: arrayUnion({
-                id: uuid(),
-                text,
-                senderId: currentUser.uid,
-                date: Timestamp.now(),
-                img: downloadURL,
-              }),
+      await new Promise((resolve) => {
+        uploadTask.on(
+          "state_changed",
+          null,
+          (error) => {
+            //TODO:Handle Error
+          },
+          () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((url) => {
+              downloadURL = url;
+              resolve();
             });
-          });
-        }
-      );
-    } else {
-      await updateDoc(doc(db, "chats", data.chatId), {
-        messages: arrayUnion({
-          id: uuid(),
-          text,
-          senderId: currentUser.uid,
-          date: Timestamp.now(),
-        }),
+          }
+        );
       });
     }
 
-    await updateDoc(doc(db, "userChats", currentUser.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
+    const message = {
+      id: uuid(),
+      text,
+      senderId: currentUser.uid,
+      chatRoomKey: data.chatRoomKey, // Add the chatRoomKey to the message object
+      date: Timestamp.now(),
+      ...(img ? { img: downloadURL } : {}),
+    };
+
+    await updateDoc(doc(db, "chats", data.chatId), {
+      messages: arrayUnion(message),
     });
 
-    await updateDoc(doc(db, "userChats", data.user.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
-    });
+    // ... (existing code)
 
     setText("");
     setImg(null);
   };
+
   return (
     <div className="input">
       <input
@@ -99,3 +90,4 @@ const Input = () => {
 };
 
 export default Input;
+

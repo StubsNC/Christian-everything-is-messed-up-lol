@@ -6,19 +6,33 @@ import Message from "./Message";
 
 const Messages = () => {
   const [messages, setMessages] = useState([]);
-  const { data } = useContext(ChatContext);
+  const { data3 } = useContext(ChatContext);
 
   useEffect(() => {
-    const unSub = onSnapshot(doc(db, "chats", data.chatId), (doc) => {
-      doc.exists() && setMessages(doc.data().messages);
-    });
+    if (data.chatRoomKey) {
+      const unSub = onSnapshot(
+        query(
+          collection(db, "messages"),
+          where("chatRoomKey", "==", data.chatRoomKey),
+          orderBy("timestamp", "asc")
+        ),
+        (querySnapshot) => {
+          const msgs = [];
+          querySnapshot.forEach((doc) => {
+            msgs.push({ id: doc.id, ...doc.data() });
+          });
+          setMessages(msgs);
+        }
+      );
 
-    return () => {
-      unSub();
-    };
-  }, [data.chatId]);
+      return () => {
+        unSub();
+      };
+    }
+  }, [data.chatRoomKey]);
 
-  console.log(messages)
+
+
 
   return (
     <div className="messages">
